@@ -1,0 +1,82 @@
+version: '3'
+services:
+
+  #PHP Service
+  app:
+    image: laravel-nginx
+    container_name: app
+    restart: unless-stopped
+    tty: true
+    environment:
+      SERVICE_NAME: app
+      SERVICE_TAGS: dev
+    working_dir: /var/www
+    depends_on:
+      - db
+    volumes:
+      - ./:/var/www
+      - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - app-network
+
+  #Nginx Service
+  webserver:
+    image: nginx:alpine
+    container_name: webserver
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "9090:80"
+      - "443:443"
+    volumes:
+      - ./:/var/www
+      - ./nginx/conf.d/:/etc/nginx/conf.d/
+      - ./nginx-logs:/var/log/nginx
+    networks:
+      - app-network
+
+  #MySQL Service
+  db:
+    image: mysql:8.2.0
+    container_name: db
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_USER: ${DB_USERNAME}
+    volumes:
+      - dbdata:/var/lib/mysql/
+      - ./mysql/my.cnf:/etc/mysql/my.cnf
+    networks:
+      - app-network
+
+  #phpMyAdmin service    
+  phpmyadmin:
+    container_name: phpmyadmin
+    depends_on:
+      - db
+    image: phpmyadmin:latest
+    restart: always
+    ports:
+      - "8090:80"
+    environment:
+      - PMA_ARBITRARY=1
+      - PMA_HOST=${DB_HOST}
+      - PMA_USER=${DB_USERNAME}
+      - PMA_PASSWORD=${DB_PASSWORD}
+      - PMA_PORT=${DB_PORT}
+    networks:
+      - app-network
+
+#Docker Networks
+networks:
+  app-network:
+    driver: bridge
+#Volumes
+volumes:
+  dbdata:
+    driver: local
